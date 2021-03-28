@@ -1,0 +1,34 @@
+- name: "Configuring the container"
+
+  hosts: docker
+
+  vars_prompt:
+    - name: html_file
+      prompt: "Enter the name of html file"
+      private: no
+
+    - name: content
+      prompt: "Enter the content for the html_file you created"
+      private: no
+
+  
+  tasks:
+    - name: "Installing httpd service..."
+      package:
+         name: "httpd"
+         state: present
+
+    - name: " Copying content entered by the user"
+      copy:
+       content: "{{ content }}"
+       dest: "/var/www/html/{{ html_file }}.html"
+
+    - name: "Starting httpd service"
+      command: "/usr/sbin/httpd"
+
+      #  hosts: localhost
+      #  tasks:          
+      #          - debug:
+      #           msg: " Docker container is configured with webserver. You can check your content by visiting the host IP address {{ ansible_default_ipv4.address  }} along with the web port no. you entered earlier."
+ 
+
