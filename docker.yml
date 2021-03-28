@@ -1,0 +1,73 @@
+- hosts: localhost
+  vars_prompt:
+  - name: cont_name
+    prompt: "Enter the container name"
+    private: no
+  - name: web_port
+    prompt: "Enter the WEB PORT no. on which you want to expose docker container"
+    private: no
+  - name: ssh_port
+    prompt: "Enter the SSH PORT no. for SSH connection"  
+    private: no
+
+  tasks:
+   - name: "Copying Docker Repo..."
+     copy:
+            src: "/etc/yum.repos.d/docker-ce.repo"
+            dest: "/etc/yum.repos.d/docker-ce.repo"
+     register: docker_install
+
+   - debug:
+           var: docker_install
+   - name: "Installing Docker..."
+     command: "yum install docker-ce --nobest -y"
+     when: docker_install.changed==true
+
+   - name: "Starting Docker services"
+     service:
+            name: "docker"
+            state: started
+
+   - name: "Stopping Selinux"
+     selinux:
+            policy: targeted
+            state: permissive
+
+   - name: "Pulling Docker Image"
+     docker_image:
+            name:  "utkarshp536/centos_ssh:v1"
+            source: pull
+
+   - name: "Launching container"
+     docker_container:
+            name: "{{ cont_name }}"
+            image: "utkarshp536/centos_ssh:v1"
+            interactive: yes
+            detach: yes
+            tty: yes
+            state: started
+            ports:  
+                   - "{{ web_port }}:80"
+                   - "{{ ssh_port }}:22"
+                    
+
+   - name: "Retrieving Container IP..."
+     docker_container_info:
+           name:  "{{ cont_name }}"
+     register: dinfo
+
+   - debug:
+           var: dinfo.container.NetworkSettings.IPAddress
+
+           
+           
+           
+   - name: "Updating Ansible Inventory with the Docker container IP"
+     blockinfile:
+            dest:  "/ansible_code/workspace/inventory.txt"
+            block: |
+                    [docker]
+                    {{ dinfo['container']['NetworkSettings']['IPAddress'] }} ansible_ssh_user=root ansible_ssh_pass=docker ansible_connection=ssh
+
+   - debug:
+           msg: "Docker container launched successfully and inventory is configured successfully."
